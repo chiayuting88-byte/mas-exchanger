@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "MAS Exchanger",
+  "description": "Official MAS & Singapore Dollar currency exchange platform with live forex conversion, money changer comparisons, and rate analytics.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
