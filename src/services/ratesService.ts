@@ -30,7 +30,26 @@ export async function fetchExchangeRates(): Promise<RatesResponse> {
     // ignore storage error
   }
 
-  // Fetch live from open API
+  // 1. Check local serverless MAS API endpoint first
+  try {
+    const masRes = await fetch('/api/mas-exchange-rates');
+    if (masRes.ok) {
+      const masData = await masRes.json();
+      if (masData?.success && masData?.normalizedRatesAgainstSGD) {
+        const mergedRates = { ...DEFAULT_SGD_RATES, ...masData.normalizedRatesAgainstSGD };
+        return {
+          base: 'SGD',
+          rates: mergedRates,
+          lastUpdated: `MAS Official (${masData.end_of_day || 'Latest'})`,
+          isLive: true,
+        };
+      }
+    }
+  } catch {
+    // Ignore and proceed to public rate service
+  }
+
+  // 2. Fetch live from open API fallback
   try {
     const res = await fetch('https://open.er-api.com/v6/latest/SGD', {
       headers: { Accept: 'application/json' },

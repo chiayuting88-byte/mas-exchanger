@@ -4,10 +4,34 @@ import path from 'path';
 import { exec } from 'child_process';
 import { defineConfig, Plugin } from 'vite';
 
-function gitApiPlugin(): Plugin {
+import healthHandler from './api/health';
+import psiHandler from './api/psi';
+import masRatesHandler from './api/mas-exchange-rates';
+
+function serverlessApiPlugin(): Plugin {
   return {
-    name: 'git-api-plugin',
+    name: 'serverless-api-plugin',
     configureServer(server) {
+      // 1. Health Endpoint
+      server.middlewares.use('/api/health', (req, res) => {
+        healthHandler(req, res);
+      });
+
+      // 2. Singapore PSI Air Quality Endpoint
+      server.middlewares.use('/api/psi', (req, res) => {
+        psiHandler(req, res);
+      });
+
+      // 3. MAS Live Exchange Rates Endpoint
+      server.middlewares.use('/api/mas-exchange-rates', (req, res) => {
+        masRatesHandler(req, res);
+      });
+
+      server.middlewares.use('/api/exchange-rates', (req, res) => {
+        masRatesHandler(req, res);
+      });
+
+      // 4. Git Push Endpoint
       server.middlewares.use('/api/git-push', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -39,8 +63,10 @@ function gitApiPlugin(): Plugin {
             exec(command, (error, stdout, stderr) => {
               res.setHeader('Content-Type', 'application/json');
               if (error) {
-                // Sanitize output to not leak token in error messages
-                const sanitizedErr = (stderr || error.message || '').replace(new RegExp(cleanToken, 'g'), '[REDACTED_TOKEN]');
+                const sanitizedErr = (stderr || error.message || '').replace(
+                  new RegExp(cleanToken, 'g'),
+                  '[REDACTED_TOKEN]'
+                );
                 res.statusCode = 400;
                 res.end(JSON.stringify({ success: false, error: sanitizedErr, stdout }));
               } else {
@@ -61,7 +87,7 @@ function gitApiPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), gitApiPlugin()],
+    plugins: [react(), tailwindcss(), serverlessApiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
