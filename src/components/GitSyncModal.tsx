@@ -26,6 +26,9 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
   const [tokenInput, setTokenInput] = useState<string>('ghp_3bbXNfvKRDorgZsAwmWGAfj378HsFo2H1m9');
   const [repoName] = useState<string>('chiayuting88-byte/mas-exchanger');
   const [testing, setTesting] = useState<boolean>(false);
+  const [pushing, setPushing] = useState<boolean>(false);
+  const [pushSuccess, setPushSuccess] = useState<boolean>(false);
+  const [pushMessage, setPushMessage] = useState<string>('');
   const [testResult, setTestResult] = useState<{
     tested: boolean;
     success: boolean;
@@ -45,6 +48,7 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
 
   const handleTestToken = async () => {
     setTesting(true);
+    setPushMessage('');
     try {
       const res = await testGitHubAuth(tokenInput);
       setTestResult({
@@ -55,6 +59,32 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
       });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handlePushNow = async () => {
+    setPushing(true);
+    setPushMessage('');
+    setPushSuccess(false);
+    try {
+      const res = await fetch('/api/git-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tokenInput, repo: repoName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPushSuccess(true);
+        setPushMessage(data.message || 'Successfully pushed to GitHub repository!');
+      } else {
+        setPushSuccess(false);
+        setPushMessage(data.error || 'Push failed. Please check token permissions.');
+      }
+    } catch (err: any) {
+      setPushSuccess(false);
+      setPushMessage(err?.message || 'Network error executing push.');
+    } finally {
+      setPushing(false);
     }
   };
 
@@ -168,6 +198,38 @@ export const GitSyncModal: React.FC<GitSyncModalProps> = ({ isOpen, onClose }) =
             <p className="text-[11px] text-slate-400 leading-normal">
               {validation.message}
             </p>
+
+            <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <button
+                onClick={handlePushNow}
+                disabled={pushing || !tokenInput.trim()}
+                className="w-full sm:w-auto px-4 py-2 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-950 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm shadow-emerald-500/20"
+              >
+                <GitBranch className={`w-3.5 h-3.5 ${pushing ? 'animate-spin' : ''}`} />
+                <span>{pushing ? 'Pushing to GitHub...' : 'Push to GitHub Now'}</span>
+              </button>
+
+              <span className="text-[11px] text-slate-400">
+                Pushes latest commit to origin/main
+              </span>
+            </div>
+
+            {pushMessage && (
+              <div
+                className={`mt-2 p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  pushSuccess
+                    ? 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-950/40 border border-rose-500/30 text-rose-300'
+                }`}
+              >
+                {pushSuccess ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                )}
+                <span className="font-mono">{pushMessage}</span>
+              </div>
+            )}
           </div>
 
           {/* Push Commands to run locally or in shell */}
